@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>حساب تكاليف المواد الغذائية</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#ffffff;
+    --muted:#9aa5b1;
+    --line:#1f2937;
+    --ring:#3b82f6;
+    --text:#070606;
+    --accent:#0d6efd;
+    --danger:#ef4444;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Naskh Arabic","Noto Sans Arabic",Arial,sans-serif;line-height:1.6}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  header{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;margin:16px 0 10px}
+  .title{font-weight:900;font-size:clamp(20px,4vw,28px);color:var(--text)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button,select,input{border-radius:10px;border:1px solid var(--line);background:#e5e7eb;color:var(--text);padding:10px 12px;outline:none}
+  button.primary{background:var(--accent);color:#fefeff;font-weight:900;border:0}
+  button.danger{background:var(--danger);border:0;color:#fefeff}
+  button:focus,select:focus,input:focus,textarea:focus{box-shadow:0 0 0 3px #0b57ef;border-color:var(--ring)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 24px #fcfdfd;padding:16px}
+  table{width:100%;border-collapse:collapse}
+  th,td{border-bottom:1px solid var(--line);padding:10px;text-align:center;vertical-align:middle}
+  th{font-weight:800;color:#0b57ef}
+  td img{width:60px;height:60px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#0b1020}
+  td input[type="number"]{width:110px}
+  .thumb-uploader{display:flex;align-items:center;gap:8px;justify-content:center}
+  .thumb-uploader input{display:none}
+  .thumb-btn{padding:6px 10px;border:1px dashed #334155;background:#0b57ef;border-radius:8px;cursor:pointer;font-size:12px;color:#e5e7eb}
+  .totals{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+  @media (max-width:700px){.totals{grid-template-columns:1fr} td input[type="number"]{width:90px}}
+  .totals .box{background:#e9eaeb;border:1px solid var(--line);padding:12px;border-radius:12px}
+  .totals .row{display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center;margin:6px 0}
+  .sum{font-size:18px;font-weight:900;color:#0b1020}
+  footer{background:#e9eaeb;border:1px solid var(--line);border-radius:var(--radius);margin:18px 0;padding:10px 14px;text-align:center;color:#0b1020;font-size:13px}
+  .lang{display:inline-flex;border:1px solid var(--line);overflow:hidden;border-radius:999px}
+  .lang button{background:#0b57ef;border:0;padding:8px 20px;cursor:pointer;color:#f8f9fb}
+  .lang button.active{background:#0b57ef}
+  .muted{color:#237ce9}
+  .note{font-size:12px;color:#ef4444;margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title" id="appTitle">حساب تكاليف المواد الغذائية</div>
+      <div class="controls">
+        <div class="lang" id="langSwitch">
+          <button data-lang="ar" class="active">العربية</button>
+          <button data-lang="en">English</button>
+        </div>
+        <select id="currency">
+          <option value="USD">$ USD</option>
+          <option value="LBP">ل.ل LBP</option>
+        </select>
+        <button class="primary" id="addRow">+ إضافة صنف</button>
+        <button id="exportJSON" class="primary" style="background:#2563eb">تصدير JSON</button>
+        <button id="importJSON" class="primary" style="background:#2563eb">استيراد JSON</button>
+        <input type="file" id="jsonFile" accept=".json" style="display:none">
+        <button id="clearAll" class="danger">مسح الكل</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="muted" id="hint">أضِف أصنافًا، اختر صورة، حدّد السعر والكمية المستخدمة — سيُحسب الإجمالي تلقائيًا.</div>
+      <div class="note" id="persistNote">يتم حفظ كل شيء تلقائيًا على جهازك (LocalStorage) بشكل دائم — الحذف يدوي فقط. ثابت التحويل: 1 USD = 90000 LBP.</div>
+
+      <div style="overflow:auto;margin-top:10px">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th id="thImg">صورة</th>
+              <th id="thName">الاسم</th>
+              <th id="thUnit">الوحدة</th>
+              <th id="thPrice">السعر للوحدة</th>
+              <th id="thQty">الكمية المستخدمة</th>
+              <th id="thSub">الإجمالي</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="totals">
+        <div class="box">
+          <div class="row"><div id="sumLabel">المجموع</div><div class="sum" id="sumVal">0</div></div>
+          <div class="row">
+            <label for="discount" id="discountLabel">خصم %</label>
+            <input id="discount" type="number" min="0" step="0.01" value="0">
+          </div>
+        </div>
+        <div class="box">
+          <div class="row">
+            <label for="tax" id="taxLabel">ضريبة %</label>
+            <input id="tax" type="number" min="0" step="0.01" value="0">
+          </div>
+          <div class="row"><div id="grandLabel">الإجمالي النهائي</div><div class="sum" id="grandVal">0</div></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>© <span id="year"></span> — <span id="footerNote">صفحة ثابتة بدون بناء أو خوادم</span></footer>
+  </div>
+
+<script>
+(function(){
+  const $  = (sel, root=document)=>root.querySelector(sel);
+  const $$ = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
+
+  const els = {
+    tbody: $("#tbody"),
+    addRow: $("#addRow"),
+    sumVal: $("#sumVal"),
+    grandVal: $("#grandVal"),
+    tax: $("#tax"),
+    discount: $("#discount"),
+    currency: $("#currency"),
+    exportJSON: $("#exportJSON"),
+    importJSON: $("#importJSON"),
+    jsonFile: $("#jsonFile"),
+    clearAll: $("#clearAll"),
+    langSwitch: $("#langSwitch"),
+  };
+
+  // أسعار صرف ثابتة
+  const RATES = { USD: 1, LBP: 90000 };
+
+  const texts = {
+    ar:{dir:"rtl", appTitle:"حساب تكاليف المواد الغذائية",
+        hint:"أضِف أصنافًا، اختر صورة، حدّد السعر والكمية المستخدمة — سيُحسب الإجمالي تلقائيًا.",
+        persistNote:"يتم حفظ كل شيء تلقائيًا على جهازك (LocalStorage) بشكل دائم — الحذف يدوي فقط.",
+        thImg:"صورة", thName:"الاسم", thUnit:"الوحدة", thPrice:"السعر للوحدة", thQty:"الكمية المستخدمة", thSub:"الإجمالي",
+        phName:"اسم الصنف", phUnit:"كغ / علبة / كرتونة ...", phPrice:"0.00", phQty:"الكمية المستخدمة",
+        sumLabel:"المجموع", discountLabel:"خصم %", taxLabel:"ضريبة %", grandLabel:"الإجمالي النهائي",
+        remove:"حذف", addPhoto:"صورة", footer:"صفحة ثابتة بدون بناء أو خوادم",
+        jsonExport:"تصدير JSON", jsonImport:"استيراد JSON", addItem:"+ إضافة صنف", clearAll:"مسح الكل"
+    },
+    en:{dir:"ltr", appTitle:"Food Costing Sheet",
+        hint:"Add items, choose a photo, set unit price & used quantity — totals update automatically.",
+        persistNote:"Everything is saved locally on your device (LocalStorage). Deletion is manual only.",
+        thImg:"Image", thName:"Name", thUnit:"Unit", thPrice:"Unit Price", thQty:"Used Qty", thSub:"Subtotal",
+        phName:"Item name", phUnit:"kg / box / pack ...", phPrice:"0.00", phQty:"Used quantity",
+        sumLabel:"Subtotal", discountLabel:"Discount %", taxLabel:"Tax %", grandLabel:"Grand Total",
+        remove:"Remove", addPhoto:"Photo", footer:"Static page — no build or servers",
+        jsonExport:"Export JSON", jsonImport:"Import JSON", addItem:"+ Add Item", clearAll:"Clear All"
+    }
+  };
+
+  let state = {
+    items: [], // {id, name, unit, price, qty, imgData}
+    tax: 0, discount: 0, currency: 'USD', lang:'ar'
+  };
+
+  const uid = ()=> Math.random().toString(36).slice(2);
+  const isNum = v => typeof v === "number" && Number.isFinite(v);
+
+  function formatMoney(x){
+    const c = state.currency;
+    const v = isNum(x) ? x : 0;
+    const locale = (c==='LBP' ? 'ar-LB' : (state.lang==='ar'?'ar' : 'en-US'));
+    return new Intl.NumberFormat(locale, {style:'currency', currency:c, maximumFractionDigits:2}).format(v);
+  }
+
+  function save(){ localStorage.setItem("food_costing_state", JSON.stringify(state)); }
+  function load(){
+    const raw = localStorage.getItem("food_costing_state");
+    if(raw){ try{ state = JSON.parse(raw) || state; }catch(e){} }
+  }
+
+  function applyLang(l){
+    state.lang = l;
+    const t = texts[l];
+    document.documentElement.dir = t.dir;
+    document.documentElement.lang = l;
+    $("#appTitle").textContent = t.appTitle;
+    $("#hint").textContent = t.hint;
+    $("#persistNote").textContent = `${t.persistNote} ثابت التحويل: 1 USD = 90000 LBP.`;
+    $("#thImg").textContent = t.thImg;
+    $("#thName").textContent = t.thName;
+    $("#thUnit").textContent = t.thUnit;
+    $("#thPrice").textContent = t.thPrice;
+    $("#thQty").textContent = t.thQty;
+    $("#thSub").textContent = t.thSub;
+    $("#sumLabel").textContent = t.sumLabel;
+    $("#discountLabel").textContent = t.discountLabel;
+    $("#taxLabel").textContent = t.taxLabel;
+    $("#grandLabel").textContent = t.grandLabel;
+    $("#footerNote").textContent = t.footer;
+    els.addRow.textContent = t.addItem;
+    els.exportJSON.textContent = t.jsonExport;
+    els.importJSON.textContent = t.jsonImport;
+    els.clearAll.textContent = t.clearAll;
+
+    // تحديث placeholders
+    $$("#itemsTable tbody tr").forEach(tr=>{
+      tr.querySelector('.name').placeholder = t.phName;
+      tr.querySelector('.unit').placeholder = t.phUnit;
+      tr.querySelector('.price').placeholder = t.phPrice;
+      tr.querySelector('.qty').placeholder = t.phQty;
+      tr.querySelector('.rm').textContent = t.remove;
+      tr.querySelector('.thumb-btn').textContent = t.addPhoto;
+    });
+    updateTotals(); save();
+  }
+
+  // إنشاء صف (push للمصفوفة فقط عندما ننشئ عنصر جديد)
+  function addRow(item, pushToState=true){
+    if(!item){ item = {id:uid(), name:"", unit:"", price:0, qty:0, imgData:null}; }
+    if(pushToState){ state.items.push(item); }
+
+    const tr = document.createElement('tr');
+    tr.dataset.id = item.id;
+    tr.innerHTML = `
+      <td>
+        <div class="thumb-uploader">
+          <img alt="" src="${item.imgData?item.imgData:''}" style="display:${item.imgData?'block':'none'}">
+          <label class="thumb-btn"></label>
+          <input type="file" accept="image/*">
+        </div>
+      </td>
+      <td><input class="name" type="text"></td>
+      <td><input class="unit" type="text"></td>
+      <td><input class="price" type="number" min="0" step="0.01"></td>
+      <td><input class="qty" type="number" min="0" step="0.001"></td>
+      <td class="subtotal">0</td>
+      <td><button class="rm danger"></button></td>
+    `;
+    els.tbody.appendChild(tr);
+
+    const t = texts[state.lang];
+    tr.querySelector('.name').value = item.name; tr.querySelector('.name').placeholder = t.phName;
+    tr.querySelector('.unit').value = item.unit; tr.querySelector('.unit').placeholder = t.phUnit;
+    tr.querySelector('.price').value = item.price; tr.querySelector('.price').placeholder = t.phPrice;
+    tr.querySelector('.qty').value = item.qty; tr.querySelector('.qty').placeholder = t.phQty;
+    tr.querySelector('.rm').textContent = t.remove;
+    tr.querySelector('.thumb-btn').textContent = t.addPhoto;
+
+    const fileInput = tr.querySelector('input[type="file"]');
+    const img = tr.querySelector('img');
+
+    function sanitizeNum(v, decimals){
+      let n = parseFloat(v);
+      if(!Number.isFinite(n) || n < 0) n = 0;
+      return Number(n.toFixed(decimals));
+    }
+
+    tr.querySelector('.name').addEventListener('input', e=>{ item.name = e.target.value; save(); });
+    tr.querySelector('.unit').addEventListener('input', e=>{ item.unit = e.target.value; save(); });
+
+    const priceEl = tr.querySelector('.price');
+    const qtyEl   = tr.querySelector('.qty');
+
+    // حساب فوري أثناء الكتابة
+    priceEl.addEventListener('input', e=>{
+      const v = parseFloat(e.target.value);
+      item.price = (!Number.isFinite(v) || v<0) ? 0 : v;
+      updateRow(tr,item);            // يعيد الإجمالي فورًا
+    });
+    qtyEl.addEventListener('input', e=>{
+      const v = parseFloat(e.target.value);
+      item.qty = (!Number.isFinite(v) || v<0) ? 0 : v;
+      updateRow(tr,item);            // يعيد الإجمالي فورًا
+    });
+
+    // تنسيق عند الخروج من الحقل + إعادة الحساب
+    priceEl.addEventListener('blur', e=>{
+      item.price = sanitizeNum(e.target.value, 2);
+      e.target.value = item.price;
+      updateRow(tr,item);
+    });
+    qtyEl.addEventListener('blur', e=>{
+      item.qty = sanitizeNum(e.target.value, 3);
+      e.target.value = item.qty;
+      updateRow(tr,item);
+    });
+
+    tr.querySelector('.rm').addEventListener('click', ()=>{ removeItem(item.id); });
+    tr.querySelector('.thumb-btn').addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', ()=>{
+      const f = fileInput.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = e=>{
+        item.imgData = e.target.result;
+        img.src = item.imgData; img.style.display = 'block';
+        save();
+      };
+      reader.readAsDataURL(f);
+    });
+
+    updateRow(tr,item);
+  }
+
+  function rowSubtotal(item){
+    if(!isNum(item.price) || item.price < 0) return 0;
+    if(!isNum(item.qty)   || item.qty   < 0) return 0;
+    return item.price * item.qty;
+  }
+
+  function updateRow(tr,item){
+    const sub = rowSubtotal(item);
+    tr.querySelector('.subtotal').textContent = formatMoney(sub);
+    updateTotals(); save();
+  }
+
+  function removeItem(id){
+    state.items = state.items.filter(x=>x.id!==id);
+    const row = $(`tr[data-id="${id}"]`, els.tbody);
+    if(row) row.remove();
+    updateTotals(); save();
+  }
+
+  function updateTotals(){
+    const sum = state.items.reduce((a,b)=> a + rowSubtotal(b), 0);
+    const afterDiscount = sum * (1 - (+state.discount||0)/100);
+    const grand = afterDiscount * (1 + (+state.tax||0)/100);
+    els.sumVal.textContent = formatMoney(sum);
+    els.grandVal.textContent = formatMoney(grand);
+  }
+
+  // شبكة أمان: أي إدخال في price/qty داخل الجدول يعيد الحساب فورًا
+  els.tbody.addEventListener('input', (e)=>{
+    if(e.target.classList.contains('price') || e.target.classList.contains('qty')){
+      updateTotals();
+      save();
+    }
+  });
+
+  // تحويل الأسعار عند تغيير العملة + إعادة الحساب الفوري
+  function convertAllPrices(from, to){
+    if(from===to) return;
+    const factor = RATES[to] / RATES[from];
+    state.items.forEach(it=>{
+      it.price = Number(((+it.price||0) * factor).toFixed(2));
+    });
+    $$("#itemsTable tbody tr").forEach((tr, idx)=>{
+      const it = state.items[idx];
+      tr.querySelector('.price').value = it.price;
+      tr.querySelector('.subtotal').textContent = formatMoney(rowSubtotal(it));
+    });
+  }
+
+  // events
+  els.addRow.addEventListener('click', ()=> addRow(undefined, true));
+  els.tax.addEventListener('input', e=>{ state.tax = Math.max(0, parseFloat(e.target.value)||0); updateTotals(); save(); });
+  els.discount.addEventListener('input', e=>{ state.discount = Math.max(0, parseFloat(e.target.value)||0); updateTotals(); save(); });
+
+  els.currency.addEventListener('change', e=>{
+    const newCur = e.target.value;
+    const oldCur = state.currency;
+    convertAllPrices(oldCur, newCur);
+    state.currency = newCur;
+    updateTotals();                 // حساب فوري بعد التحويل
+    save();
+  });
+
+  els.exportJSON.addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'food-costing.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  els.importJSON.addEventListener('click', ()=> els.jsonFile.click());
+  els.jsonFile.addEventListener('change', ()=>{
+  const f = els.jsonFile.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data || !Array.isArray(data.items)) throw new Error('invalid');
+      state = Object.assign({items:[],tax:0,discount:0,currency:'USD',lang:'ar'}, data);
+
+      els.tbody.innerHTML = "";
+      state.items.forEach(it=> addRow(it, false));
+      els.tax.value = state.tax;
+      els.discount.value = state.discount;
+
+      if(state.currency!=='USD' && state.currency!=='LBP') state.currency='USD';
+      els.currency.value = state.currency;
+
+      // اللغة
+      [...els.langSwitch.children].forEach(b=> b.classList.remove('active'));
+      const btn = els.langSwitch.querySelector(`[data-lang="${state.lang}"]`);
+      if (btn) btn.classList.add('active');
+
+      applyLang(state.lang);
+      updateTotals();  // إعادة الحساب مباشرة بعد الاستيراد
+      save();
+    }catch(err){
+      alert('Failed to import JSON');
+    }
+  };
+  reader.readAsText(f);
+});
+
+els.clearAll.addEventListener('click', ()=>{
+  if(confirm(state.lang==='ar'?'سيتم حذف كل البيانات المحفوظة. متابعة؟':'This will clear all saved data. Continue?')){
+    state.items=[]; els.tbody.innerHTML="";
+    state.tax=0; state.discount=0;
+    els.tax.value=0; els.discount.value=0;
+    updateTotals(); save();
+  }
+});
+
+
+  els.clearAll.addEventListener('click', ()=>{
+    if(confirm(state.lang==='ar'?'سيتم حذف كل البيانات المحفوظة. متابعة؟':'This will clear all saved data. Continue?')){
+      state.items=[]; els.tbody.innerHTML=""; state.tax=0; state.discount=0; els.tax.value=0; els.discount.value=0;
+      updateTotals(); save();
+    }
+  });
+
+  // language switch
+  els.langSwitch.addEventListener('click', (e)=>{
+    if(e.target.tagName==='BUTTON'){
+      [...els.langSwitch.children].forEach(b=> b.classList.remove('active'));
+      e.target.classList.add('active');
+      applyLang(e.target.dataset.lang);
+      updateTotals(); // يعيد الحساب بنفس التنسيق
+    }
+  });
+
+  // init
+  $("#year").textContent = new Date().getFullYear();
+  load();
+
+  if(state.currency!=='USD' && state.currency!=='LBP') state.currency='USD';
+  els.currency.value = state.currency;
+
+  els.tbody.innerHTML = "";
+  if(state.items && state.items.length){
+    state.items.forEach(it=> addRow(it, false));
+  }
+  els.tax.value = state.tax || 0;
+  els.discount.value = state.discount || 0;
+
+  applyLang(state.lang || 'ar');
+  [...els.langSwitch.children].forEach(b=> b.classList.toggle('active', b.dataset.lang === state.lang));
+  updateTotals(); // حساب أولي عند الإقلاع
+
+})();
+</script>
+</body>
+</html>
