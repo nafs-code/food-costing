@@ -49,6 +49,10 @@
   .pages-list li{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin:6px 0;cursor:pointer}
   .pages-list li.active{border-color:#2563eb;background:#eff6ff}
   .pages-actions{display:flex;gap:8px;margin-top:8px}
+
+  /* سطر اسم الصفحة + الزر */
+  .page-row{display:flex;align-items:center;gap:8px}
+  #activePageName{font-weight:700}
 </style>
 </head>
 <body>
@@ -56,15 +60,20 @@
     <header>
       <div class="title" id="appTitle">حساب تكاليف المواد الغذائية</div>
 
-      <!-- زر قائمة الصفحات -->
-      <div class="pages-wrap">
-        <button id="pagesBtn" class="pages-btn">قائمة الصفحات ▾</button>
-        <div id="pagesDD" class="pages-dd" role="menu" aria-hidden="true">
-          <div class="muted" id="pagesHint" style="margin:4px 6px">اختر صفحة أو أنشئ صفحة جديدة</div>
-          <ul id="pagesList" class="pages-list"></ul>
-          <div class="pages-actions">
-            <button id="pageAdd" class="primary">+ صفحة جديدة</button>
-            <button id="pageRename">إعادة تسمية</button>
+      <!-- اسم الصفحة الحالية ثم زر قائمة الصفحات (حسب طلبك) -->
+      <div class="page-row">
+        <span id="activePageName" class="muted"></span>
+        <div class="pages-wrap">
+          <button id="pagesBtn" class="pages-btn">قائمة الصفحات ▾</button>
+          <div id="pagesDD" class="pages-dd" role="menu" aria-hidden="true">
+            <div class="muted" id="pagesHint" style="margin:4px 6px">اختر صفحة أو أنشئ صفحة جديدة</div>
+            <ul id="pagesList" class="pages-list"></ul>
+            <div class="pages-actions">
+              <button id="pageAdd" class="primary">+ صفحة جديدة</button>
+              <button id="pageRename">إعادة تسمية</button>
+              <!-- زر حذف الصفحة (مضاف فقط) -->
+              <button id="pageDelete" class="danger">حذف الصفحة</button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,8 +126,8 @@
         </div>
         <div class="box">
           <div class="row">
-            <label for="tax" id="taxLabel">ضريبة %</label>
-            <input id="tax" type="number" min="0" step="0.01" value="0">
+            <label for="delivery" id="deliveryLabel">التوصيل</label>
+            <input id="delivery" type="number" min="0" step="0.01" value="0">
           </div>
           <div class="row"><div id="grandLabel">الإجمالي النهائي</div><div class="sum" id="grandVal">0</div></div>
         </div>
@@ -138,7 +147,7 @@
     addRow: $("#addRow"),
     sumVal: $("#sumVal"),
     grandVal: $("#grandVal"),
-    tax: $("#tax"),
+    delivery: $("#delivery"),
     discount: $("#discount"),
     currency: $("#currency"),
     exportJSON: $("#exportJSON"),
@@ -153,7 +162,9 @@
     pagesList: $("#pagesList"),
     pageAdd: $("#pageAdd"),
     pageRename: $("#pageRename"),
+    pageDelete: $("#pageDelete"),  // ← مضاف
     pagesHint: $("#pagesHint"),
+    pageName: $("#activePageName"), // ← مضاف
   };
 
   // أسعار صرف ثابتة
@@ -165,10 +176,12 @@
         persistNote:"يتم حفظ كل شيء تلقائيًا على جهازك (LocalStorage) بشكل دائم — الحذف يدوي فقط.",
         thImg:"صورة", thName:"الاسم", thUnit:"الوحدة", thPrice:"السعر للوحدة", thQty:"الكمية المستخدمة", thSub:"الإجمالي",
         phName:"اسم الصنف", phUnit:"كغ / علبة / كرتونة ...", phPrice:"0.00", phQty:"الكمية المستخدمة",
-        sumLabel:"المجموع", discountLabel:"خصم %", taxLabel:"ضريبة %", grandLabel:"الإجمالي النهائي",
+        sumLabel:"المجموع", discountLabel:"خصم %", deliveryLabel:"التوصيل", grandLabel:"الإجمالي النهائي",
         remove:"حذف", addPhoto:"صورة", footer:"صفحة ثابتة بدون بناء أو خوادم",
         jsonExport:"تصدير JSON", jsonImport:"استيراد JSON", addItem:"+ إضافة صنف", clearAll:"مسح الكل",
         pagesBtn:"قائمة الصفحات ▾", pagesHint:"اختر صفحة أو أنشئ صفحة جديدة", pageNew:"+ صفحة جديدة", rename:"إعادة تسمية",
+        deletePage:"حذف الصفحة",                        /* ← مضاف */
+        confirmDelete:"سيتم حذف هذه الصفحة نهائيًا. متابعة؟", /* ← مضاف */
         promptNew:"اسم الصفحة الجديدة؟", promptRename:"اسم جديد للصفحة:", cannotRename:"لا توجد صفحة حالية!"
     },
     en:{dir:"ltr", appTitle:"Food Costing Sheet",
@@ -176,10 +189,12 @@
         persistNote:"Everything is saved locally on your device (LocalStorage). Deletion is manual only.",
         thImg:"Image", thName:"Name", thUnit:"Unit", thPrice:"Unit Price", thQty:"Used Qty", thSub:"Subtotal",
         phName:"Item name", phUnit:"kg / box / pack ...", phPrice:"0.00", phQty:"Used quantity",
-        sumLabel:"Subtotal", discountLabel:"Discount %", taxLabel:"Tax %", grandLabel:"Grand Total",
+        sumLabel:"Subtotal", discountLabel:"Discount %", deliveryLabel:"Delivery", grandLabel:"Grand Total",
         remove:"Remove", addPhoto:"Photo", footer:"Static page — no build or servers",
         jsonExport:"Export JSON", jsonImport:"Import JSON", addItem:"+ Add Item", clearAll:"Clear All",
         pagesBtn:"Pages ▾", pagesHint:"Pick a page or create one", pageNew:"+ New page", rename:"Rename",
+        deletePage:"Delete page",                         /* ← مضاف */
+        confirmDelete:"This page will be permanently deleted. Continue?", /* ← مضاف */
         promptNew:"New page name?", promptRename:"New name for the page:", cannotRename:"No active page!"
     }
   };
@@ -189,7 +204,7 @@
   const STATE_KEY = (id)=> `food_costing_state__${id}`;
   let currentPageId = null;
 
-  function defState(){ return { items:[], tax:0, discount:0, currency:'USD', lang:'ar' }; }
+  function defState(){ return { items:[], delivery:0, discount:0, currency:'USD', lang:'ar' }; }
 
   function genId(){ return Math.random().toString(36).slice(2,10); }
 
@@ -225,11 +240,19 @@
     });
   }
 
+  // اسم الصفحة الحالية
+  function setActivePageName(){
+    const m = ensureMeta();
+    const p = m.list.find(x=>x.id===m.activeId);
+    if (els.pageName) els.pageName.textContent = p ? p.name : '';
+  }
+
   function switchPage(id){
     const m = ensureMeta();
     if(!m.list.some(p=>p.id===id)) return;
     m.activeId = id; saveMeta(m);
     currentPageId = id; setHash(id); renderPagesDD();
+    setActivePageName();                 // تحديث الاسم
     loadState(); // يعيد رسم الجدول وكل شيء
     closeDD();
   }
@@ -255,6 +278,44 @@
     const page = m.list.find(p=>p.id===m.activeId);
     const name = prompt(texts[lang].promptRename, page.name); if(!name) return;
     page.name = name; saveMeta(m); renderPagesDD();
+    setActivePageName();                 // اسم الصفحة بعد التسمية
+  }
+
+  // حذف الصفحة (مضاف فقط)
+  function deletePage(){
+    const lang = state?.lang || 'ar';
+    const m = ensureMeta();
+    if(!m.activeId) return;
+
+    if(!confirm(texts[lang].confirmDelete)) return;
+
+    const delId = m.activeId;
+    // احذف حالة الصفحة من التخزين
+    try{ localStorage.removeItem(STATE_KEY(delId)); }catch{}
+
+    // أزل الصفحة من القائمة
+    m.list = m.list.filter(p=>p.id!==delId);
+
+    // إن لم تبقَ صفحات، أنشئ واحدة افتراضية
+    if(m.list.length===0){
+      const newId = genId();
+      m.list.push({id:newId, name: (lang==='ar'?'الصفحة 1':'Page 1')} );
+      localStorage.setItem(STATE_KEY(newId), JSON.stringify(defState()));
+      m.activeId = newId;
+    }else{
+      // اختر أول صفحة متبقية كفعالة
+      m.activeId = m.list[0].id;
+    }
+
+    saveMeta(m);
+
+    // حدّث المؤشرات والواجهة
+    currentPageId = m.activeId;
+    setHash(currentPageId);
+    renderPagesDD();
+    setActivePageName();
+    loadState();
+    closeDD();
   }
 
   /*---------------- منطق الصفحة الأساسية ----------------*/
@@ -280,7 +341,7 @@
     // UI
     els.tbody.innerHTML = "";
     if(state.items && state.items.length){ state.items.forEach(it=> addRow(it, false)); }
-    els.tax.value = state.tax || 0;
+    els.delivery.value = state.delivery || 0;
     els.discount.value = state.discount || 0;
     if(state.currency!=='USD' && state.currency!=='LBP') state.currency='USD';
     els.currency.value = state.currency;
@@ -300,10 +361,11 @@
     $("#persistNote").textContent = `${t.persistNote} ثابت التحويل: 1 USD = 90000 LBP.`;
     $("#thImg").textContent = t.thImg; $("#thName").textContent = t.thName; $("#thUnit").textContent = t.thUnit;
     $("#thPrice").textContent = t.thPrice; $("#thQty").textContent = t.thQty; $("#thSub").textContent = t.thSub;
-    $("#sumLabel").textContent = t.sumLabel; $("#discountLabel").textContent = t.discountLabel; $("#taxLabel").textContent = t.taxLabel;
+    $("#sumLabel").textContent = t.sumLabel; $("#discountLabel").textContent = t.discountLabel; $("#deliveryLabel").textContent = t.deliveryLabel;
     $("#grandLabel").textContent = t.grandLabel; $("#footerNote").textContent = t.footer;
     els.addRow.textContent = t.addItem; els.exportJSON.textContent = t.jsonExport; els.importJSON.textContent = t.jsonImport; els.clearAll.textContent = t.clearAll;
     els.pagesBtn.textContent = t.pagesBtn; els.pagesHint.textContent = t.pagesHint; els.pageAdd.textContent = t.pageNew; els.pageRename.textContent = t.rename;
+    if(els.pageDelete) els.pageDelete.textContent = t.deletePage; // ← نص زر الحذف
 
     // placeholders
     $$("#itemsTable tbody tr").forEach(tr=>{
@@ -326,7 +388,7 @@
     tr.innerHTML = `
       <td>
         <div class="thumb-uploader">
-          <img alt="" src="${item.imgData?item.imgData:''}" style="display:${item.imgData?'block':'none'}">
+          <img alt="" src="${item.imgData ? item.imgData : ''}" style="display:${item.imgData ? 'block' : 'none'}">
           <label class="thumb-btn"></label>
           <input type="file" accept="image/*">
         </div>
@@ -391,7 +453,7 @@
 
   function removeItem(id){
     state.items = state.items.filter(x=>x.id!==id);
-    const row = document.querySelector(`tr[data-id="${id}"]`);
+    const row = document.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
     if(row) row.remove();
     updateTotals(); save();
   }
@@ -399,7 +461,7 @@
   function updateTotals(){
     const sum = state.items.reduce((a,b)=> a + rowSubtotal(b), 0);
     const afterDiscount = sum * (1 - (+state.discount||0)/100);
-    const grand = afterDiscount * (1 + (+state.tax||0)/100);
+    const grand = afterDiscount + (+state.delivery||0);
     els.sumVal.textContent = formatMoney(sum);
     els.grandVal.textContent = formatMoney(grand);
   }
@@ -421,7 +483,7 @@
 
   // events
   els.addRow.addEventListener('click', ()=> addRow(undefined, true));
-  els.tax.addEventListener('input', e=>{ state.tax = Math.max(0, parseFloat(e.target.value)||0); updateTotals(); save(); });
+  els.delivery.addEventListener('input', e=>{ state.delivery = Math.max(0, parseFloat(e.target.value)||0); updateTotals(); save(); });
   els.discount.addEventListener('input', e=>{ state.discount = Math.max(0, parseFloat(e.target.value)||0); updateTotals(); save(); });
 
   els.currency.addEventListener('change', e=>{
@@ -430,9 +492,12 @@
   });
 
   els.exportJSON.addEventListener('click', ()=>{
-    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `food-costing-${currentPageId}.json`; a.click(); URL.revokeObjectURL(a.href);
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `food-costing-${currentPageId}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   });
 
   els.importJSON.addEventListener('click', ()=> els.jsonFile.click());
@@ -445,7 +510,7 @@
         if(!data || !Array.isArray(data.items)) throw new Error('invalid');
         state = Object.assign(defState(), data);
         els.tbody.innerHTML = ""; state.items.forEach(it=> addRow(it, false));
-        els.tax.value = state.tax; els.discount.value = state.discount;
+        els.delivery.value = state.delivery || 0; els.discount.value = state.discount || 0;
         if(state.currency!=='USD' && state.currency!=='LBP') state.currency='USD';
         els.currency.value = state.currency;
         applyLang(state.lang); updateTotals(); save();
@@ -456,7 +521,7 @@
 
   els.clearAll.addEventListener('click', ()=>{
     const msg = state.lang==='ar'?'سيتم حذف بيانات هذه الصفحة فقط. متابعة؟':'This will clear this page only. Continue?';
-    if(confirm(msg)){ state.items=[]; els.tbody.innerHTML=""; state.tax=0; state.discount=0; els.tax.value=0; els.discount.value=0; updateTotals(); save(); }
+    if(confirm(msg)){ state.items=[]; els.tbody.innerHTML=""; state.delivery=0; state.discount=0; els.delivery.value=0; els.discount.value=0; updateTotals(); save(); }
   });
 
   // اللغة
@@ -473,6 +538,7 @@
   els.pagesDD.addEventListener('click', (e)=> e.stopPropagation());
   els.pageAdd.addEventListener('click', addPage);
   els.pageRename.addEventListener('click', renamePage);
+  els.pageDelete.addEventListener('click', deletePage); // ← تفعيل زر الحذف
   window.addEventListener('hashchange', ()=>{
     const m = ensureMeta();
     const idFromHash = (location.hash.match(/#p=([A-Za-z0-9_-]+)/)||[])[1];
@@ -489,6 +555,7 @@
   saveMeta(meta0);
   currentPageId = meta0.activeId; setHash(currentPageId);
   renderPagesDD();
+  setActivePageName(); // اسم الصفحة عند الإقلاع
   loadState();
 })();
 </script>
