@@ -4,6 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>حساب تكاليف المواد الغذائية</title>
+
+<script>
+  (function(){
+    // غيّر كلمة السر هنا
+    const PASSWORD = "nafs2025";
+
+    // لا تضع الكود في مكان عام لو يهمك الأمان الحقيقي
+    if (!sessionStorage.getItem('auth-ok')) {
+      // إظهار نافذة إدخال كلمة السر
+      const p = prompt("ادخل كلمة السر للوصول إلى الموقع:");
+      if (p !== PASSWORD) {
+        alert("كلمة السر خاطئة. سيتم تحويلك.");
+        // توجيه لمكان آخر أو اغلاق
+        window.location.href = "about:blank";
+        return;
+      } else {
+        sessionStorage.setItem('auth-ok','1');
+      }
+    }
+    // لو نجح، يُسمح بتحميل الصفحة كالمعتاد
+  })();
+</script>
+
+
 <style>
   :root{
     --bg:#ffffff; --panel:#ffffff; --muted:#9aa5b1; --line:#1f2937;
