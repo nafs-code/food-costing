@@ -6,26 +6,42 @@
 <title>حساب تكاليف المواد الغذائية</title>
 
 <script>
-  (function(){
+  (function () {
     // غيّر كلمة السر هنا
     const PASSWORD = "nafs2025";
 
-    // لا تضع الكود في مكان عام لو يهمك الأمان الحقيقي
-    if (!sessionStorage.getItem('auth-ok')) {
-      // إظهار نافذة إدخال كلمة السر
+    // إعدادات التذكر
+    const KEY = "fc_auth_ok_v2";            // مفتاح التخزين
+    const REMEMBER_DAYS = 360;               // مدة التذكر بالأيام (عدّلها كما تريد)
+    const MS = 24 * 60 * 60 * 1000;
+
+    // التحقق من وجود جلسة محفوظة وصالحة
+    function hasValidToken() {
+      try {
+        const t = JSON.parse(localStorage.getItem(KEY));
+        if (!t) return false;
+        if (typeof t.exp === "number" && Date.now() < t.exp) return true;
+      } catch (_) {}
+      localStorage.removeItem(KEY);
+      return false;
+    }
+
+    if (!hasValidToken()) {
       const p = prompt("ادخل كلمة السر للوصول إلى الموقع:");
-      if (p !== PASSWORD) {
-        alert("كلمة السر خاطئة. سيتم تحويلك.");
-        // توجيه لمكان آخر أو اغلاق
-        window.location.href = "about:blank";
-        return;
+      if (p === PASSWORD) {
+        const exp = Date.now() + REMEMBER_DAYS * MS;
+        localStorage.setItem(KEY, JSON.stringify({ ok: 1, exp }));
+        // تم الحفظ، نكمل تحميل الصفحة
       } else {
-        sessionStorage.setItem('auth-ok','1');
+        alert("كلمة السر خاطئة. سيتم تحويلك.");
+        location.href = "about:blank";
+        return;
       }
     }
-    // لو نجح، يُسمح بتحميل الصفحة كالمعتاد
+    // عند هذه النقطة: إمّا كان عندنا جلسة صالحة أو تم إدخال كلمة السر الصحيحة
   })();
 </script>
+
 
 
 <style>
